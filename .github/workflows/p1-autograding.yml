@@ -1,0 +1,54 @@
+name: Autograding I/O Tests
+
+on:
+  push:
+    paths:
+      - 'p1/**'
+      - '.github/workflows/p1-autograding.yml'
+  workflow_dispatch:
+
+jobs:
+  io-tests:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout student code
+        uses: actions/checkout@v4
+
+      - name: Install GCC 15
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-15
+
+          gcc-15 --version
+
+      - name: Build and run I/O tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          cd p1
+
+          gcc-15 -std=c23 -O0 -o main main.c
+
+          count=0
+          for in_file in tests/case*.in; do
+            count=$((count + 1))
+            base="${in_file##*/}"
+            base="${base%.in}"
+            out_file="tests/${base}.out"
+
+            ./main < "$in_file" | diff -q -Z - "$out_file"
+          done
+
+          if [ "$count" -eq 0 ]; then
+            echo "No test cases found in p1/tests."
+            exit 1
+          fi
